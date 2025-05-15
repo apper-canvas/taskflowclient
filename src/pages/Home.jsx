@@ -50,8 +50,10 @@ function Home() {
   }, [dispatch, user]);
   
   useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    const loadInitialData = async () => {
+      try {
+        dispatch(setLoading(true));
+        dispatch(setStreakLoading(true));
           const tasksData = await fetchTasks({ userId: user.emailAddress });
           dispatch(setTasks(tasksData));
           
