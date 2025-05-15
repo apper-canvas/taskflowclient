@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+// Main App component that handles routing, theme management, and overall layout of the application
 import { Routes, Route } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import { motion } from 'framer-motion';
