@@ -146,10 +146,11 @@ function Home() {
       
       dispatch(setLoading(false));
       toast.success('Task added successfully!');
-  }, [dispatch]);
+    } catch (error) {
       dispatch(setLoading(false));
       dispatch(setError(error.message));
-  const handleToggleBookmark = useCallback(async (taskId) => {
+    }
+  }, [dispatch, user]);
     }
   };
 
