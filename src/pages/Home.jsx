@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { useSelector, useDispatch } from 'react-redux';
@@ -25,29 +25,33 @@ function Home() {
 
   // Keep categories in component state as they're UI-specific
   // In a full implementation, these might come from another database table
-  const [categories, setCategories] = useState([
-    { id: 'personal', name: 'Personal', color: '#6366f1' },
-    { id: 'work', name: 'Work', color: '#f43f5e' },
-    { id: 'shopping', name: 'Shopping', color: '#14b8a6' }
-  ]);
-
-  const CheckCircleIcon = getIcon('CheckCircle');
-  const CircleIcon = getIcon('Circle');
-  const TrashIcon = getIcon('Trash');
-  const LayersIcon = getIcon('Layers');
-  const ListChecksIcon = getIcon('ListChecks');
-  const FlameIcon = getIcon('Flame');
+  const fetchUserData = useCallback(() => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    dispatch(fetchTasksAction(user.emailAddress))
+      .unwrap()
+      .then(() => setIsLoading(false))
+      .catch(error => {
+        console.error("Failed to fetch tasks:", error);
+        toast.error("Failed to load your tasks");
+        setIsLoading(false);
+      });
+      
+    setIsStreakLoading(true);
+    dispatch(fetchStreakRecordAction(user.emailAddress))
+      .unwrap()
+      .then(() => setIsStreakLoading(false))
+      .catch(error => {
+        console.error("Failed to fetch streak data:", error);
+        toast.error("Failed to load your streak data");
+        setIsStreakLoading(false);
+      });
+  }, [dispatch, user]);
   
-  // Fetch tasks and streak data when component mounts
   useEffect(() => {
-    if (user) {
-      const loadInitialData = async () => {
-        setIsLoadingPage(true);
-        try {
-          dispatch(setLoading(true));
-          dispatch(setStreakLoading(true));
-          
-          // Fetch tasks
+    fetchUserData();
+  }, [fetchUserData]);
           const tasksData = await fetchTasks({ userId: user.emailAddress });
           dispatch(setTasks(tasksData));
           
@@ -73,7 +77,7 @@ function Home() {
   
   // Handle loading state
   if (isLoadingPage) {
-    return (
+  const handleAddTask = useCallback(async (taskData) => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="card p-8 flex flex-col items-center">
           <div className="animate-spin mb-4">
@@ -88,10 +92,10 @@ function Home() {
   // Check for streak at risk warning on page load
   useEffect(() => {
     if (isStreakAtRisk(streakData.lastCompletionDate, streakData.currentStreak)) {
-      toast.warning(`Don't break your ${streakData.currentStreak} day streak! Complete a task today.`, {
+  }, [dispatch, user]);
         icon: <FlameIcon className="text-amber-500" />
       });
-    }
+  const handleToggleComplete = useCallback(async (taskId) => {
   }, []);
   
   // Update streak when a task is completed
@@ -127,10 +131,10 @@ function Home() {
       
       // Add user ID to task data
       const taskWithOwner = {
-        ...newTask,
+  }, [dispatch, streakData, tasks]);
         userId: user.emailAddress
       };
-      
+  const handleDeleteTask = useCallback(async (taskId) => {
       // Create task in database
       const createdTask = await createTask(taskWithOwner);
       
@@ -139,10 +143,10 @@ function Home() {
       
       dispatch(setLoading(false));
       toast.success('Task added successfully!');
-    } catch (error) {
+  }, [dispatch]);
       dispatch(setLoading(false));
       dispatch(setError(error.message));
-      toast.error('Failed to add task. Please try again.');
+  const handleToggleBookmark = useCallback(async (taskId) => {
     }
   };
 
@@ -158,7 +162,7 @@ function Home() {
       };
       
       // Update task in database
-      await updateTask(updatedTask);
+  }, [dispatch, tasks]);
       
       // Update Redux store
       dispatch(updateTaskAction(updatedTask));

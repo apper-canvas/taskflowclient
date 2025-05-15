@@ -157,18 +157,18 @@ function App() {
           <>
             <div className="fixed top-5 left-5 z-10 flex space-x-2">
               {navLinks.map(link => (
-                <motion.a 
+                <motion.button 
                   key={link.path}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  href={link.path}
+                  onClick={() => navigate(link.path)}
                   className="flex items-center py-2 px-4 rounded-lg bg-surface-200 dark:bg-surface-700 text-surface-800 dark:text-surface-100 shadow-soft hover:shadow-md transition-all"
                 >
                   {<link.icon size={18} className="mr-2" />}
                   {link.label}
-                </motion.a>
+                </motion.button>
               ))}
             </div>
 

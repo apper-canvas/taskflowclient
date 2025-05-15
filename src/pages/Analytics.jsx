@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import Chart from 'react-apexcharts';
@@ -31,55 +31,68 @@ function Analytics() {
         setTasks(tasksData);
         setError(null);
       } catch (err) {
-        console.error("Error fetching tasks for analytics:", err);
-        setError("Failed to load task data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+  const taskStats = useMemo(() => {
+    return {
+      total: tasks.length,
+      completed: tasks.filter(task => task.completed).length,
+      incomplete: tasks.filter(task => !task.completed).length,
+      personal: tasks.filter(task => task.category === 'personal').length,
+      work: tasks.filter(task => task.category === 'work').length,
+      shopping: tasks.filter(task => task.category === 'shopping').length,
+      highPriority: tasks.filter(task => task.priority === 'high').length,
+      mediumPriority: tasks.filter(task => task.priority === 'medium').length,
+      lowPriority: tasks.filter(task => task.priority === 'low').length,
+      completionRate: tasks.length > 0 ? Math.round((tasks.filter(task => task.completed).length / tasks.length) * 100) : 0
     };
-    
-    loadTasks();
-  }, [user]);
-  
-  // Loading state
-  if (loading) {
+  }, [tasks]);
     return <div className="min-h-screen flex items-center justify-center">
       <div className="text-xl text-primary">Loading analytics data...</div>
-    </div>;
-  }
+  const categoryChartOptions = useMemo(() => {
+    return {
+      chart: {
+        id: 'task-categories'
+      },
+      labels: ['Personal', 'Work', 'Shopping'],
+      colors: ['#4ade80', '#60a5fa', '#f97316'],
+      legend: {
+        position: 'bottom'
+      }
+    };
+  }, []);
   
-  const BarChartIcon = getIcon('BarChart');
-  const CalendarIcon = getIcon('Calendar');
-  const TrendingUpIcon = getIcon('TrendingUp');
-  const PieChartIcon = getIcon('PieChart');
-  const ListIcon = getIcon('List');
-  
-  useEffect(() => {
-    // Update dark mode status when theme changes
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          setIsDarkMode(document.documentElement.classList.contains('dark'));
+  const categoryChartSeries = useMemo(() => {
+    return [
+      taskStats.personal, 
+      taskStats.work, 
+      taskStats.shopping
+    ];
+  }, [taskStats.personal, taskStats.work, taskStats.shopping]);
         }
       });
-    });
-    observer.observe(document.documentElement, { attributes: true });
-    
-    return () => observer.disconnect();
-  }, []);
-
-  // Calculate task statistics
-  const completedTasks = tasks.filter(task => task.completed).length;
-  const pendingTasks = tasks.length - completedTasks;
-  const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
-  
-  // Category distribution data
-  const categoryDistribution = categories.map(category => {
-    const categoryTasks = tasks.filter(task => task.category === category.id).length;
+  const priorityChartOptions = useMemo(() => {
     return {
+      chart: {
+        id: 'task-priorities'
+      },
+      labels: ['High', 'Medium', 'Low'],
+      colors: ['#ef4444', '#eab308', '#3b82f6'],
+      legend: {
+        position: 'bottom'
+      }
+    };
+  }, []);
+  
+  const priorityChartSeries = useMemo(() => {
+    return [
+      taskStats.highPriority,
+      taskStats.mediumPriority,
+      taskStats.lowPriority
+    ];
+  }, [taskStats.highPriority, taskStats.mediumPriority, taskStats.lowPriority]);
       name: category.name,
       count: categoryTasks,
-      color: category.color
+  const streakChartOptions = useMemo(() => {
+    return {
     };
   });
   
@@ -108,19 +121,23 @@ function Analytics() {
       x: format(day, 'EEE'),
       y: dayTasks
     };
-  });
+    };
+  }, []);
 
   // Theme colors based on dark mode
-  const textColor = isDarkMode ? '#cbd5e1' : '#1e293b';
-  const gridColor = isDarkMode ? '#334155' : '#e2e8f0';
-  
-  // Chart options
-  const completionChartOptions = {
-    chart: {
-      type: 'radialBar',
+  const completedDateCounts = useMemo(() => {
+    const counts = {};
+    (streakData?.completedDates || []).forEach(date => {
+      if (!counts[date]) {
+        counts[date] = 0;
+      }
+      counts[date]++;
+    });
+    return counts;
+  }, [streakData?.completedDates]);
       foreColor: textColor
     },
-    plotOptions: {
+  const streakChartData = useMemo(() => Object.entries(completedDateCounts).map(([date, count]) => {
       radialBar: {
         hollow: { size: '70%' },
         track: { background: isDarkMode ? '#334155' : '#e2e8f0' },
@@ -131,7 +148,7 @@ function Analytics() {
             fontWeight: 600,
             formatter: function (val) { return Math.round(val) + '%' } 
           }
-        }
+  }), [completedDateCounts]);
       }
     },
     colors: ['#6366f1'],
@@ -145,10 +162,12 @@ function Analytics() {
     labels: categoryDistribution.map(cat => cat.name),
     colors: categoryDistribution.map(cat => cat.color),
     legend: {
-      position: 'bottom'
-    },
-    dataLabels: {
+  const streakChartSeries = useMemo(() => {
+    return [{
+      name: 'Tasks Completed',
+      data: streakChartData
       enabled: true,
+  }, [streakChartData]);
       formatter: function(val) {
         return Math.round(val) + '%';
       }
