@@ -7,6 +7,7 @@ import getIcon from './utils/iconUtils';
 // Pages
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
+import Analytics from './pages/Analytics';
 
 function App() {
   const [darkMode, setDarkMode] = useState(
@@ -16,6 +17,7 @@ function App() {
   
   const MoonIcon = getIcon('Moon');
   const SunIcon = getIcon('Sun');
+  const BarChartIcon = getIcon('BarChart');
   
   useEffect(() => {
     if (darkMode) {
@@ -30,8 +32,30 @@ function App() {
     setDarkMode(prevMode => !prevMode);
   };
 
+  const navLinks = [
+    { path: '/', label: 'Tasks', icon: getIcon('ListChecks') },
+    { path: '/analytics', label: 'Analytics', icon: BarChartIcon }
+  ];
+
   return (
     <div className="min-h-screen">
+      <div className="fixed top-5 left-5 z-10 flex space-x-2">
+        {navLinks.map(link => (
+          <motion.a 
+            key={link.path}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            href={link.path}
+            className="flex items-center py-2 px-4 rounded-lg bg-surface-200 dark:bg-surface-700 text-surface-800 dark:text-surface-100 shadow-soft hover:shadow-md transition-all"
+          >
+            {<link.icon size={18} className="mr-2" />}
+            {link.label}
+          </motion.a>
+        ))}
+      </div>
+
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -45,6 +69,7 @@ function App() {
       
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       

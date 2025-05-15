@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import getIcon from '../utils/iconUtils';
 import MainFeature from '../components/MainFeature';
+import DashboardSummary from '../components/DashboardSummary';
 
 function Home() {
   const [tasks, setTasks] = useState(() => {
@@ -56,14 +57,14 @@ function Home() {
   const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
 
   return (
-    <div className="min-h-screen">
-      <header className="bg-gradient-to-r from-primary to-primary-dark text-white py-6 md:py-8">
+    <div className="min-h-screen pt-16">
+      <header className="bg-gradient-to-r from-primary to-primary-dark text-white py-6 md:py-8 mt-2">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div className="mb-4 md:mb-0">
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold flex items-center">
-                <ListChecksIcon className="mr-2" size={32} />
-                TaskFlow
+                <ListChecksIcon className="mr-2" size={28} />
+                My Tasks
               </h1>
               <p className="text-primary-light mt-1">Manage your tasks effortlessly</p>
             </div>
@@ -101,6 +102,8 @@ function Home() {
                 >
                   All Tasks
                 </button>
+                
+                
                 
                 {categories.map(category => (
                   <button 
@@ -142,6 +145,8 @@ function Home() {
           </div>
           
           <div className="lg:col-span-4 order-1 lg:order-2">
+            <DashboardSummary tasks={tasks} />
+            
             <MainFeature 
               addTask={addTask} 
               categories={categories}
