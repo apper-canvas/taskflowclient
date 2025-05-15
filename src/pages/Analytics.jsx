@@ -5,6 +5,7 @@ import Chart from 'react-apexcharts';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, getDay } from 'date-fns';
 import getIcon from '../utils/iconUtils';
 import { fetchTasks } from '../services/taskService';
+import { fetchTasks } from '../services/taskService';
 
 function Analytics() {
   const { user } = useSelector(state => state.user);
@@ -64,8 +65,9 @@ function Analytics() {
   
   const categoryChartOptions = useMemo(() => {
     return {
-      chart: {
-        id: 'task-categories'
+      chart: { 
+        id: 'task-categories',
+        foreColor: isDarkMode ? '#cbd5e1' : '#334155' 
       },
       labels: ['Personal', 'Work', 'Shopping'],
       colors: ['#4ade80', '#60a5fa', '#f97316'],
@@ -73,7 +75,7 @@ function Analytics() {
         position: 'bottom'
       }
     };
-  }, []);
+  }, [isDarkMode]);
   
   const categoryChartSeries = useMemo(() => {
     return [
@@ -82,37 +84,75 @@ function Analytics() {
       taskStats.shopping
     ];
   }, [taskStats.personal, taskStats.work, taskStats.shopping]);
-  
-  const priorityChartOptions = useMemo(() => {
-    return {
-      chart: {
-        id: 'task-priorities'
-      },
-      labels: ['High', 'Medium', 'Low'],
-      colors: ['#ef4444', '#eab308', '#3b82f6'],
-      legend: {
-        position: 'bottom'
+
+  // Theme-based colors for charts
+  const textColor = isDarkMode ? '#cbd5e1' : '#334155';
+  const gridColor = isDarkMode ? '#334155' : '#e2e8f0';
+
+  // Completion rate chart options
+  const completionChartOptions = {
+    chart: {
+      foreColor: textColor
+    },
+      radialBar: {
+        hollow: { size: '70%' },
+        track: { background: isDarkMode ? '#334155' : '#e2e8f0' },
+        dataLabels: {
+          name: { show: false },
+        value: {
+            fontSize: '30px',
+            fontWeight: 600,
+          formatter: function (val) { return Math.round(val) + '%' }
+          }
       }
-    };
-  }, []);
-  
-  const priorityChartSeries = useMemo(() => {
-    return [
-      taskStats.highPriority,
-      taskStats.mediumPriority,
-      taskStats.lowPriority
-    ];
-  }, [taskStats.highPriority, taskStats.mediumPriority, taskStats.lowPriority]);
-  const streakChartOptions = useMemo(() => {
-    return {
-    };
-  }, []);
+    },
+    colors: ['#6366f1'],
+    stroke: { lineCap: 'round' }
+  };
   
   // Priority distribution data
   const priorityCount = {
     high: tasks.filter(task => task.priority === 'high').length,
     medium: tasks.filter(task => task.priority === 'medium').length,
     low: tasks.filter(task => task.priority === 'low').length
+  };
+  
+  const priorityChartOptions = {
+    chart: {
+      id: 'task-priorities',
+      foreColor: textColor
+    },
+    colors: ['#f43f5e', '#fb923c', '#3b82f6'],
+    xaxis: {
+      categories: ['High', 'Medium', 'Low']
+    },
+    plotOptions: {
+      bar: {
+        borderRadius: 6,
+        dataLabels: {
+          position: 'top'
+        }
+      }
+    },
+    dataLabels: {
+      enabled: true,
+      offsetY: -20,
+      style: {
+        fontSize: '12px',
+        colors: [textColor]
+      }
+    },
+      formatter: function(val) {
+        return Math.round(val) + '%';
+      }
+    },
+    responsive: [{
+      breakpoint: 480,
+      options: {
+        chart: { height: 250 },
+        legend: { position: 'bottom' }
+      }
+    }]
   };
   
   // Weekly task completion chart data
@@ -134,112 +174,21 @@ function Analytics() {
       y: dayTasks
     };
   });
-
-  // Theme colors based on dark mode
-  const completedDateCounts = useMemo(() => {
-    const counts = {};
-    (streakData?.completedDates || []).forEach(date => {
-      if (!counts[date]) {
-        counts[date] = 0;
-      }
-      counts[date]++;
-    });
-    return counts;
-  }, []);
   
-  // Theme-based colors
-  const textColor = isDarkMode ? '#cbd5e1' : '#334155';
-    },
-  const streakChartData = useMemo(() => Object.entries(completedDateCounts).map(([date, count]) => {
-      radialBar: {
-        hollow: { size: '70%' },
-        track: { background: isDarkMode ? '#334155' : '#e2e8f0' },
-        dataLabels: {
-          name: { show: false },
-          value: { 
-            fontSize: '30px',
-            fontWeight: 600,
-            formatter: function (val) { return Math.round(val) + '%' } 
-          }
-      }
-    };
-  }), [completedDateCounts, isDarkMode]);
-    },
-    colors: ['#6366f1'],
-    stroke: { lineCap: 'round' }
+  const weeklyChartOptions = {
+    chart: { foreColor: textColor },
+    colors: ['#14b8a6'],
+    xaxis: { categories: weeklyCompletionData.map(d => d.x) },
+    grid: { borderColor: gridColor }
   };
 
-  const categoryChartOptions = {
-    chart: {
-      foreColor: textColor
-    },
-    labels: categoryDistribution.map(cat => cat.name),
-    colors: categoryDistribution.map(cat => cat.color),
-    legend: {
-  const streakChartSeries = useMemo(() => {
-    return [{
-      name: 'Tasks Completed',
-      data: streakChartData
-    }];
-  }, [streakChartData]);
-      formatter: function(val) {
-        return Math.round(val) + '%';
-      }
-    },
-    responsive: [{
-      breakpoint: 480,
-      options: {
-        chart: { height: 250 },
-        legend: { position: 'bottom' }
-      }
-    }]
-  };
-
-  const priorityChartOptions = {
-    chart: {
-      foreColor: textColor
-    },
-    colors: ['#f43f5e', '#fb923c', '#3b82f6'],
-    xaxis: {
-      categories: ['High', 'Medium', 'Low']
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 6,
-        dataLabels: {
-          position: 'top'
-        }
-        }
-      }
-    },
-    dataLabels: {
-      enabled: true,
-      offsetY: -20,
-      style: {
-        fontSize: '12px',
-        colors: [textColor]
-      }
-    },
-  };
-
-  const gridColor = isDarkMode ? '#334155' : '#e2e8f0';
+  // Get icons
   const BarChartIcon = getIcon('BarChart');
   const PieChartIcon = getIcon('PieChart');
-  const weeklyChartOptions = {
-    chart: {
-      foreColor: textColor
-    },
-    colors: ['#14b8a6'],
-    xaxis: {
-      categories: weeklyCompletionData.map(d => d.x)
-    },
-    grid: {
-      borderColor: gridColor,
-    }
-  };
   const TrendingUpIcon = getIcon('TrendingUp');
   const ListIcon = getIcon('List');
-
+  const CalendarIcon = getIcon('Calendar');
+  
   return (
     <>
     {error && (
