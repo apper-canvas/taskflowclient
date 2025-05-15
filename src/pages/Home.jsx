@@ -52,7 +52,7 @@ function Home() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        dispatch(setLoading(true));
+        dispatch(setLoading(true)); 
         dispatch(setStreakLoading(true));
           const tasksData = await fetchTasks({ userId: user.emailAddress });
           dispatch(setTasks(tasksData));
@@ -74,16 +74,15 @@ function Home() {
       };
       
       loadInitialData();
-    }
   }, [dispatch, user]);
   
   // Handle loading state
   if (isLoadingPage) {
-  const handleAddTask = useCallback(async (taskData) => {
+    return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="card p-8 flex flex-col items-center">
           <div className="animate-spin mb-4">
-            <ListChecksIcon size={48} className="text-primary" />
+            {getIcon('ListChecks')({ size: 48, className: "text-primary" })}
           </div>
           <h2 className="text-xl font-semibold">Loading your tasks...</h2>
         </div>
@@ -94,12 +93,10 @@ function Home() {
   // Check for streak at risk warning on page load
   useEffect(() => {
     if (isStreakAtRisk(streakData.lastCompletionDate, streakData.currentStreak)) {
-  }, [dispatch, user]);
-        icon: <FlameIcon className="text-amber-500" />
+        icon: getIcon('Flame')({ className: "text-amber-500" })
       });
-  const handleToggleComplete = useCallback(async (taskId) => {
-  }, []);
-  
+   }, [streakData]);
+
   // Update streak when a task is completed
   const updateStreak = useCallback(() => {
     // Only update if not already completed today
@@ -125,6 +122,7 @@ function Home() {
       
       return updatedStreakData.currentStreak;  
     }
+    return null;
   }, [streakData, dispatch]);
 
   const handleAddTask = async (newTask) => {
@@ -133,10 +131,9 @@ function Home() {
       
       // Add user ID to task data
       const taskWithOwner = {
-  }, [dispatch, streakData, tasks]);
+        ...newTask,
         userId: user.emailAddress
       };
-  const handleDeleteTask = useCallback(async (taskId) => {
       // Create task in database
       const createdTask = await createTask(taskWithOwner);
       
@@ -188,10 +185,9 @@ function Home() {
     }
   };
 
-  const handleDeleteTask = async (id) => {
+    } catch (error) {
     try {
       // Delete task from database
-      await deleteTask(id);
       
       // Update Redux store
       dispatch(removeTask(id));
@@ -250,7 +246,6 @@ function Home() {
               <span>{completedTasks} of {tasks.length} tasks completed</span>
               <div className="w-20 h-2 bg-white/20 rounded-full ml-2">
                 <div 
-                  className="h-full bg-green-300 rounded-full transition-all duration-300" 
                   style={{ width: `${completionRate}%` }}
                 ></div>
               </div>
