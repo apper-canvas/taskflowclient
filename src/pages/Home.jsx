@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import getIcon from '../utils/iconUtils';
 import MainFeature from '../components/MainFeature';
 import DashboardSummary from '../components/DashboardSummary';
+import ImportExportTasks from '../components/ImportExportTasks';
 
 function Home() {
   const [tasks, setTasks] = useState(() => {
@@ -148,8 +149,13 @@ function Home() {
             <DashboardSummary tasks={tasks} />
             
             <MainFeature 
-              addTask={addTask} 
-              categories={categories}
+              addTask={addTask}
+              categories={categories} 
+            />
+            
+            <ImportExportTasks 
+              tasks={tasks}
+              setTasks={setTasks}
             />
             
             <div className="mt-8">
