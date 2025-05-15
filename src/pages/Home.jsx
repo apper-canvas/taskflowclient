@@ -93,7 +93,11 @@ function Home() {
   // Check for streak at risk warning on page load
   useEffect(() => {
     if (isStreakAtRisk(streakData.lastCompletionDate, streakData.currentStreak)) {
-        icon: getIcon('Flame')({ className: "text-amber-500" })
+      toast.warning("Your streak is at risk! Complete a task today to maintain it.", {
+        icon: getIcon('Flame')({ className: "text-amber-500" }),
+        autoClose: 5000,
+        hideProgressBar: false
+      });
       });
    }, [streakData]);
 
