@@ -98,7 +98,7 @@ function Home() {
         autoClose: 5000,
         hideProgressBar: false
       });
-      });
+    }
    }, [streakData]);
 
   // Update streak when a task is completed
