@@ -354,5 +354,3 @@ function Home() {
 }
 
 export default Home;
-                                <TrashIcon size={16} />
-                            </div>
