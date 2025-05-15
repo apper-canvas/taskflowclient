@@ -29,6 +29,7 @@ function App() {
     localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
   
+  // Toggle between dark and light modes, and persist user preference in localStorage
   const toggleDarkMode = () => {
     setDarkMode(prevMode => !prevMode);
   };
