@@ -5,7 +5,6 @@ import Chart from 'react-apexcharts';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, getDay } from 'date-fns';
 import getIcon from '../utils/iconUtils';
 import { fetchTasks } from '../services/taskService';
-import { fetchTasks } from '../services/taskService';
 
 function Analytics() {
   const { user } = useSelector(state => state.user);
