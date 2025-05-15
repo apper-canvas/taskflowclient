@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
+import { useSelector, useDispatch } from 'react-redux';
 import getIcon from '../utils/iconUtils';
 import { initializeStreakData, calculateStreak, completedTaskToday, isStreakAtRisk } from '../utils/streakUtils';
 import { getSampleTasks } from '../utils/sampleData';
@@ -8,22 +9,22 @@ import MainFeature from '../components/MainFeature';
 import DashboardSummary from '../components/DashboardSummary';
 import ImportExportTasks from '../components/ImportExportTasks';
 import StreakCalendar from '../components/StreakCalendar';
+import { fetchTasks, createTask, updateTask, deleteTask } from '../services/taskService';
+import { getOrCreateStreakRecord, updateStreakRecord } from '../services/streakService';
+import { setTasks, addTask, updateTask as updateTaskAction, removeTask, setLoading, setError } from '../store/tasksSlice';
+import { setStreakData, updateStreakData, setStreakLoading, setStreakError } from '../store/streakSlice';
 
 function Home() {
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    if (savedTasks && JSON.parse(savedTasks).length > 0) {
-      return JSON.parse(savedTasks);
-    }
-    return getSampleTasks(); // Use sample data for new users
-  });
-  
-  const [streakData, setStreakData] = useState(() => {
-    const savedStreakData = localStorage.getItem('streakData');
-    return savedStreakData ? JSON.parse(savedStreakData) : initializeStreakData();
-  });
-  
+  const dispatch = useDispatch();
+  const { user } = useSelector(state => state.user);
+  const { tasks, loading, error } = useSelector(state => state.tasks);
+  const { streakData, loading: streakLoading, error: streakError } = useSelector(state => state.streak);
+
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+
+  // Keep categories in component state as they're UI-specific
+  // In a full implementation, these might come from another database table
   const [categories, setCategories] = useState([
     { id: 'personal', name: 'Personal', color: '#6366f1' },
     { id: 'work', name: 'Work', color: '#f43f5e' },
@@ -36,15 +37,54 @@ function Home() {
   const LayersIcon = getIcon('Layers');
   const ListChecksIcon = getIcon('ListChecks');
   const FlameIcon = getIcon('Flame');
+  
+  // Fetch tasks and streak data when component mounts
+  useEffect(() => {
+    if (user) {
+      const loadInitialData = async () => {
+        setIsLoadingPage(true);
+        try {
+          dispatch(setLoading(true));
+          dispatch(setStreakLoading(true));
+          
+          // Fetch tasks
+          const tasksData = await fetchTasks({ userId: user.emailAddress });
+          dispatch(setTasks(tasksData));
+          
+          // Fetch or create streak record
+          const streakRecord = await getOrCreateStreakRecord(user.emailAddress);
+          dispatch(setStreakData(streakRecord));
+          
+        } catch (error) {
+          console.error("Error loading initial data:", error);
+          toast.error("Failed to load tasks. Please try again.");
+          dispatch(setError("Failed to load tasks"));
+          dispatch(setStreakError("Failed to load streak data"));
+        } finally {
+          setIsLoadingPage(false);
+          dispatch(setLoading(false));
+          dispatch(setStreakLoading(false));
+        }
+      };
+      
+      loadInitialData();
+    }
+  }, [dispatch, user]);
+  
+  // Handle loading state
+  if (isLoadingPage) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="card p-8 flex flex-col items-center">
+          <div className="animate-spin mb-4">
+            <ListChecksIcon size={48} className="text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold">Loading your tasks...</h2>
+        </div>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
-  
-  useEffect(() => {
-    localStorage.setItem('streakData', JSON.stringify(streakData));
-  }, [streakData]);
-  
   // Check for streak at risk warning on page load
   useEffect(() => {
     if (isStreakAtRisk(streakData.lastCompletionDate, streakData.currentStreak)) {
@@ -68,40 +108,112 @@ function Home() {
         highestStreak: Math.max(streakData.highestStreak, calculateStreak(updatedCompletedDates, today))
       };
       
-      setStreakData(updatedStreakData);
-      return updatedStreakData.currentStreak;
+      dispatch(setStreakData(updatedStreakData));
+      
+      // Update streak record in database
+      try {
+        updateStreakRecord(updatedStreakData);
+      } catch (error) {
+        console.error("Error updating streak record:", error);
+      }
+      
+      return updatedStreakData.currentStreak;  
     }
-  }, [streakData]);
+  }, [streakData, dispatch]);
 
-  const addTask = (newTask) => {
-    setTasks([...tasks, newTask]);
-    toast.success('Task added successfully!');
+  const handleAddTask = async (newTask) => {
+    try {
+      dispatch(setLoading(true));
+      
+      // Add user ID to task data
+      const taskWithOwner = {
+        ...newTask,
+        userId: user.emailAddress
+      };
+      
+      // Create task in database
+      const createdTask = await createTask(taskWithOwner);
+      
+      // Update Redux store
+      dispatch(addTask(createdTask));
+      
+      dispatch(setLoading(false));
+      toast.success('Task added successfully!');
+    } catch (error) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.message));
+      toast.error('Failed to add task. Please try again.');
+    }
   };
 
-  const toggleTaskStatus = (id) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
-    
-    const task = tasks.find(task => task.id === id);
-    if (!task.completed) {
-      toast.success('Task completed! 🎉');
+  const handleToggleTaskStatus = async (id) => {
+    try {
+      const task = tasks.find(task => task.id === id);
+      if (!task) return;
+      
+      // Create updated task object
+      const updatedTask = {
+        ...task,
+        completed: !task.completed
+      };
+      
+      // Update task in database
+      await updateTask(updatedTask);
+      
+      // Update Redux store
+      dispatch(updateTaskAction(updatedTask));
+      
+      toast.success(updatedTask.completed ? 'Task completed! 🎉' : 'Task marked as incomplete');
       
       // Update streak when a task is completed
-      const newStreak = updateStreak();
-      
-      // Show streak milestone celebrations
-      if (newStreak && newStreak > 1) {
-        toast.success(`🔥 ${newStreak} day streak! Keep it up!`, {
-          icon: <FlameIcon className="text-amber-500" />
-        });
+      if (updatedTask.completed) {
+        const newStreak = updateStreak();
+        
+        // Show streak milestone celebrations
+        if (newStreak && newStreak > 1) {
+          toast.success(`🔥 ${newStreak} day streak! Keep it up!`, {
+            icon: <FlameIcon className="text-amber-500" />
+          });
+        }
       }
+    } catch (error) {
+      console.error("Error toggling task status:", error);
+      toast.error('Failed to update task status. Please try again.');
     }
   };
 
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
-    toast.success('Task deleted successfully!');
+  const handleDeleteTask = async (id) => {
+    try {
+      // Delete task from database
+      await deleteTask(id);
+      
+      // Update Redux store
+      dispatch(removeTask(id));
+      
+      toast.success('Task deleted successfully!');
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error('Failed to delete task. Please try again.');
+    }
+  };
+  
+  // Error handling for network issues
+  if (error) {
+    toast.success('Task added successfully!');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="card p-8 max-w-md">
+          <h2 className="text-xl font-semibold text-red-500 mb-4">Error Loading Tasks</h2>
+          <p className="mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn btn-primary w-full"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   };
   
   // Filter tasks based on selected category
@@ -234,7 +346,7 @@ function Home() {
             />
             
             <MainFeature 
-              addTask={addTask}
+              addTask={handleAddTask}
               categories={categories} 
             />
             
@@ -281,7 +393,7 @@ function Home() {
                     >
                       <div className="flex items-start gap-3">
                         <button 
-                          onClick={() => toggleTaskStatus(task.id)}
+                          onClick={() => handleToggleTaskStatus(task.id)}
                           className={`mt-1 flex-shrink-0 ${
                             task.completed ? 'text-green-500' : 'text-surface-400 hover:text-primary'
                           }`}
@@ -297,7 +409,7 @@ function Home() {
                               {task.title}
                             </h3>
                             <button 
-                              onClick={() => deleteTask(task.id)}
+                              onClick={() => handleDeleteTask(task.id)}
                               className="text-surface-400 hover:text-accent transition-colors"
                               aria-label="Delete task"
                             >

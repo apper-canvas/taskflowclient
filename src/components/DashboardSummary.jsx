@@ -1,157 +1,97 @@
-import { useState, useEffect } from 'react';
-import Chart from 'react-apexcharts';
 import { motion } from 'framer-motion';
+import { completedTaskToday, isStreakAtRisk } from '../utils/streakUtils';
 import getIcon from '../utils/iconUtils';
 
 function DashboardSummary({ tasks, streakData }) {
-  const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
-  
-  const TrendingUpIcon = getIcon('TrendingUp');
+  // Icons
   const CheckCircleIcon = getIcon('CheckCircle');
-  const ClockIcon = getIcon('Clock');
   const FlameIcon = getIcon('Flame');
+  const ArrowUpDownIcon = getIcon('ArrowUpDown');
   
-  useEffect(() => {
-    // Update dark mode status when theme changes
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          setIsDarkMode(document.documentElement.classList.contains('dark'));
-        }
-      });
-    });
-    observer.observe(document.documentElement, { attributes: true });
-    
-    return () => observer.disconnect();
-  }, []);
-
-  // Calculate task statistics
+  // Task statistics
   const completedTasks = tasks.filter(task => task.completed).length;
   const pendingTasks = tasks.length - completedTasks;
-  const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+  const highPriorityTasks = tasks.filter(task => task.priority === 'high' && !task.completed).length;
   
-  // Theme colors based on dark mode
-  const textColor = isDarkMode ? '#cbd5e1' : '#1e293b';
+  // Calculate streak status
+  const todayCompleted = completedTaskToday(streakData.lastCompletionDate);
+  const streakRisk = isStreakAtRisk(streakData.lastCompletionDate, streakData.currentStreak);
   
-  // Chart options
-  const chartOptions = {
-    chart: {
-      type: 'radialBar',
-      foreColor: textColor,
-      sparkline: {
-        enabled: true
-      }
-    },
-    plotOptions: {
-      radialBar: {
-        hollow: { size: '65%' },
-        track: { background: isDarkMode ? '#334155' : '#e2e8f0' },
-        dataLabels: {
-          name: { show: false },
-          value: { fontSize: '24px', fontWeight: 600, formatter: function (val) { return Math.round(val) + '%' } }
-        }
-      }
-    },
-    colors: ['#6366f1'],
-    stroke: { lineCap: 'round' }
-  };
-
-  // Streak progress chart options
-  const streakChartOptions = {
-    chart: {
-      type: 'radialBar',
-      foreColor: textColor,
-      sparkline: {
-        enabled: true
-      }
-    },
-    plotOptions: {
-      radialBar: {
-        hollow: { size: '65%' },
-        track: { background: isDarkMode ? '#334155' : '#e2e8f0' },
-        dataLabels: {
-          name: { show: false },
-          value: { 
-            fontSize: '24px', 
-            fontWeight: 600, 
-            formatter: function (val) { return streakData.currentStreak }
-          }
-        }
-      }
-    },
-    colors: ['#f59e0b'], // Amber color for streaks
-    stroke: { lineCap: 'round' }
-  };
-
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="card mb-6"
-    >
-      <h2 className="text-xl font-semibold mb-4 flex items-center">
-        <TrendingUpIcon className="mr-2 text-primary" size={20} />
-        Productivity Summary
-      </h2>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="card bg-gradient-to-br from-primary to-primary-dark text-white"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold">Current Streak</h3>
+          <FlameIcon className="text-amber-300" size={20} />
+        </div>
+        <div className="flex items-baseline">
+          <p className="text-3xl font-bold">{streakData.currentStreak}</p>
+          <p className="ml-1 text-primary-light">days</p>
+        </div>
+        <div className="mt-2 text-sm text-primary-light">
+          {streakData.currentStreak === 0 ? (
+            <p>Start your streak by completing a task today!</p>
+          ) : todayCompleted ? (
+            <p className="flex items-center">
+              <CheckCircleIcon className="inline mr-1 text-green-300" size={14} />
+              You've completed a task today!
+            </p>
+          ) : streakRisk ? (
+            <p className="text-amber-300">Complete a task today to keep your streak!</p>
+          ) : (
+            <p>Highest streak: {streakData.highestStreak} days</p>
+          )}
+        </div>
+      </motion.div>
       
-      <div className="flex flex-col md:flex-row md:divide-x dark:divide-surface-700">
-        <div className="flex-1 flex justify-center items-center">
-          <Chart 
-            options={chartOptions} 
-            series={[completionRate]} 
-            type="radialBar" 
-            height={200} 
-          />
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="card"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold">Completion Rate</h3>
+          <CheckCircleIcon className="text-green-500" size={20} />
         </div>
-        
-        <div className="flex-1 flex flex-col justify-center mt-4 md:mt-0">
-          <div className="flex items-center mb-3">
-            <CheckCircleIcon className="text-green-500 mr-2" size={20} />
-            <div>
-              <p className="text-lg font-semibold">{completedTasks} Tasks Completed</p>
-              <p className="text-sm text-surface-500 dark:text-surface-400">
-                {completionRate > 0 ? `That's ${Math.round(completionRate)}% of your tasks` : 'Start completing tasks'}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center">
-            <ClockIcon className="text-accent mr-2" size={20} />
-            <div>
-              <p className="text-lg font-semibold">{pendingTasks} Tasks Pending</p>
-              <p className="text-sm text-surface-500 dark:text-surface-400">
-                {pendingTasks > 0 ? `Focus on completing these tasks` : 'All caught up!'}
-              </p>
-            </div>
-          </div>
+        <div className="flex items-baseline">
+          <p className="text-3xl font-bold">
+            {tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0}%
+          </p>
         </div>
-        
-        <div className="flex-1 mt-6 md:mt-0 md:pl-4 pt-6 md:pt-0 border-t md:border-t-0 border-surface-200 dark:border-surface-700">
-          <div className="flex flex-col justify-center items-center">
-            <div className="flex items-center mb-2">
-              <FlameIcon className="text-amber-500 mr-2" size={20} />
-              <h3 className="text-lg font-semibold">Streak Stats</h3>
-            </div>
-            
-            <Chart 
-              options={streakChartOptions} 
-              series={[streakData.currentStreak > 0 ? 100 : 0]} 
-              type="radialBar" 
-              height={120} 
-              width={100}
-            />
-            
-            <div className="text-center">
-              <p className="text-sm text-surface-500 dark:text-surface-400">DAY STREAK</p>
-              <p className="text-sm mt-2">
-                Highest streak: <span className="font-semibold">{streakData.highestStreak}</span> days
-              </p>
-            </div>
-          </div>
+        <div className="flex justify-between mt-2 text-sm text-surface-600 dark:text-surface-400">
+          <p>{completedTasks} completed</p>
+          <p>{pendingTasks} pending</p>
         </div>
-      </div>
+      </motion.div>
       
-    </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="card"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold">Priority Tasks</h3>
+          <ArrowUpDownIcon className="text-accent" size={20} />
+        </div>
+        <div className="flex items-baseline">
+          <p className="text-3xl font-bold">{highPriorityTasks}</p>
+          <p className="ml-1 text-sm text-surface-600 dark:text-surface-400">high priority</p>
+        </div>
+        <div className="mt-2 text-sm text-surface-600 dark:text-surface-400">
+          {highPriorityTasks > 0 ? (
+            <p>You have {highPriorityTasks} high priority tasks to complete</p>
+          ) : (
+            <p>No high priority tasks pending. Great job!</p>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 

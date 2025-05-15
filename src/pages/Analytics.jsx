@@ -1,23 +1,52 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSelector } from 'react-redux';
 import Chart from 'react-apexcharts';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, getDay } from 'date-fns';
 import getIcon from '../utils/iconUtils';
+import { fetchTasks } from '../services/taskService';
 
 function Analytics() {
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    return savedTasks ? JSON.parse(savedTasks) : [];
-  });
+  const { user } = useSelector(state => state.user);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  const [categories, setCategories] = useState([
+  const [categories] = useState([
     { id: 'personal', name: 'Personal', color: '#6366f1' },
     { id: 'work', name: 'Work', color: '#f43f5e' },
     { id: 'shopping', name: 'Shopping', color: '#14b8a6' }
   ]);
   
-  const [viewType, setViewType] = useState('weekly');
   const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
+  
+  // Fetch tasks for the current user
+  useEffect(() => {
+    const loadTasks = async () => {
+      if (!user) return;
+      
+      setLoading(true);
+      try {
+        const tasksData = await fetchTasks({ userId: user.emailAddress });
+        setTasks(tasksData);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching tasks for analytics:", err);
+        setError("Failed to load task data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadTasks();
+  }, [user]);
+  
+  // Loading state
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-xl text-primary">Loading analytics data...</div>
+    </div>;
+  }
   
   const BarChartIcon = getIcon('BarChart');
   const CalendarIcon = getIcon('Calendar');
@@ -176,6 +205,16 @@ function Analytics() {
   };
 
   return (
+    <>
+    {error && (
+      <div className="container mx-auto px-4 py-6">
+        <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg mb-6">
+          <p className="font-medium">{error}</p>
+          <button onClick={() => window.location.reload()} className="text-primary underline mt-2">Retry</button>
+        </div>
+      </div>
+    )}
+    
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4 md:px-6">
         <header className="mb-8">
@@ -274,6 +313,7 @@ function Analytics() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

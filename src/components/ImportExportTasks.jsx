@@ -1,122 +1,91 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { parse } from 'csv-parse/browser/esm/sync';
 import { toast } from 'react-toastify';
-import { motion } from 'framer-motion';
 import getIcon from '../utils/iconUtils';
 import { tasksToCSV, csvToTasks } from '../utils/csvUtils';
 
 function ImportExportTasks({ tasks, setTasks }) {
   const [isImporting, setIsImporting] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const fileInputRef = useRef(null);
   
-  const DownloadIcon = getIcon('Download');
-  const UploadIcon = getIcon('Upload');
-  const FileIcon = getIcon('FileSpreadsheet');
+  const FileUpIcon = getIcon('FileUp');
+  const FileDownIcon = getIcon('FileDown');
   
-  const handleExport = () => {
-    setIsExporting(true);
-    
+  const handleExportCSV = () => {
     try {
-      // Convert tasks to CSV format
-      const csv = tasksToCSV(tasks);
+      const csvData = tasksToCSV(tasks);
       
-      if (!csv) {
-        toast.info('No tasks to export');
-        setIsExporting(false);
-        return;
-      }
-      
-      // Create blob and download link
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      // Create a blob and download it
+      const blob = new Blob([csvData], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      
-      // Set download attributes
-      const date = new Date().toLocaleDateString().replace(/\//g, '-');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `tasks-${date}.csv`);
-      link.style.visibility = 'hidden';
-      
-      // Trigger download
+      link.href = url;
+      link.download = `taskflow-export-${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
       toast.success('Tasks exported successfully!');
     } catch (error) {
-      toast.error(`Export failed: ${error.message}`);
-    } finally {
-      setIsExporting(false);
+      toast.error('Failed to export tasks: ' + error.message);
     }
   };
   
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-  
-  const handleFileSelect = (event) => {
+  const handleImportCSV = (event) => {
     const file = event.target.files[0];
     if (!file) return;
     
-    // Validate file type
-    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-      toast.error('Please select a valid CSV file');
-      event.target.value = ''; // Clear input
-      return;
-    }
-    
     setIsImporting(true);
     
-    // Read file
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const { tasks: importedTasks, errors } = csvToTasks(e.target.result);
         
-        if (errors.length) {
-          toast.error(`Import failed: ${errors[0]}`);
-          setIsImporting(false);
-          return;
-        }
-        
-        if (importedTasks.length === 0) {
-          toast.info('No tasks found in the CSV file');
+        if (errors && errors.length > 0) {
+          toast.error(`Import had errors: ${errors.join(', ')}`);
+        } else if (importedTasks.length === 0) {
+          toast.warning('No tasks were found in the CSV file');
         } else {
-          setTasks(importedTasks);
-          toast.success(`Successfully imported ${importedTasks.length} tasks!`);
+          setTasks([...tasks, ...importedTasks]);
+          toast.success(`Imported ${importedTasks.length} tasks successfully!`);
         }
       } catch (error) {
-        toast.error(`Import failed: ${error.message}`);
+        toast.error('Failed to import CSV: ' + error.message);
       } finally {
         setIsImporting(false);
-        event.target.value = ''; // Clear input
+        // Reset the file input
+        event.target.value = null;
       }
     };
     
     reader.onerror = () => {
-      toast.error('Error reading file');
+      toast.error('Failed to read the file');
       setIsImporting(false);
-      event.target.value = ''; // Clear input
+      event.target.value = null;
     };
     
     reader.readAsText(file);
   };
   
   return (
-    <div className="card p-4 mb-6">
-      <h2 className="text-xl font-semibold mb-4 flex items-center">
-        <FileIcon className="mr-2 text-primary" size={20} />
-        Import/Export Tasks
-      </h2>
-      <div className="flex space-x-3">
-        <motion.button onClick={handleImportClick} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={isImporting} className="flex items-center justify-center px-4 py-2 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-lg transition-colors disabled:opacity-70">
-          <UploadIcon size={16} className="mr-2" /> {isImporting ? 'Importing...' : 'Import from CSV'}
-        </motion.button>
-        <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".csv" className="hidden" />
-        
-        <motion.button onClick={handleExport} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={isExporting || tasks.length === 0} className="flex items-center justify-center px-4 py-2 bg-primary-light dark:bg-primary hover:bg-primary-dark dark:hover:bg-primary-dark text-white rounded-lg transition-colors disabled:opacity-70">
-          <DownloadIcon size={16} className="mr-2" /> {isExporting ? 'Exporting...' : 'Export to CSV'}
-        </motion.button>
+    <div className="mt-6 flex flex-wrap gap-3">
+      <button onClick={handleExportCSV} className="btn btn-outline flex items-center">
+        <FileDownIcon size={16} className="mr-1" />
+        Export Tasks
+      </button>
+      <div className="relative">
+        <input
+          type="file"
+          id="csv-import"
+          accept=".csv"
+          onChange={handleImportCSV}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          disabled={isImporting}
+        />
+        <label htmlFor="csv-import" className="btn btn-outline flex items-center cursor-pointer">
+          <FileUpIcon size={16} className="mr-1" />
+          {isImporting ? 'Importing...' : 'Import CSV'}
+        </label>
       </div>
     </div>
   );

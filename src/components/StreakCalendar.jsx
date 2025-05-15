@@ -1,113 +1,103 @@
 import { useState } from 'react';
+import { format, addMonths, subMonths, startOfMonth, getDay } from 'date-fns';
 import { motion } from 'framer-motion';
-import { format, addMonths, subMonths } from 'date-fns';
 import { getCalendarData } from '../utils/streakUtils';
 import getIcon from '../utils/iconUtils';
 
 function StreakCalendar({ streakData }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  const ChevronLeftIcon = getIcon('ChevronLeft');
-  const ChevronRightIcon = getIcon('ChevronRight');
   const CalendarIcon = getIcon('Calendar');
-  const FlameIcon = getIcon('Flame');
-
-  const calendarData = getCalendarData(
-    currentMonth, 
-    streakData.completedDates || []
-  );
-
-  // Generate day headers (Sun, Mon, etc.)
-  const dayHeaders = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const ChevronLeftIcon = getIcon('ChevronDown');
+  const ChevronRightIcon = getIcon('ChevronUp');
   
-  // Calculate day offset for the first day of the month (0 = Sunday, 1 = Monday, etc.)
-  const firstDayOffset = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+  const monthData = getCalendarData(currentMonth, streakData.completedDates);
+  const monthStart = startOfMonth(currentMonth);
+  const startDay = getDay(monthStart);
   
-  // Create a grid with empty cells for the offset days
-  const calendarGrid = Array(firstDayOffset).fill(null).concat(calendarData);
-  
-  // Navigation handlers
-  const goToPreviousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const goToNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const navigateMonth = (direction) => {
+    if (direction === 'prev') {
+      setCurrentMonth(subMonths(currentMonth, 1));
+    } else {
+      setCurrentMonth(addMonths(currentMonth, 1));
+    }
+  };
   
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="card mt-6"
+      className="mt-8 card"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold flex items-center">
-          <CalendarIcon className="mr-2 text-primary" size={20} />
-          Streak Calendar
-        </h2>
-        <div className="flex items-center space-x-1">
-          <button 
-            onClick={goToPreviousMonth}
-            className="p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
-            aria-label="Previous month"
-          >
-            <ChevronLeftIcon size={16} />
-          </button>
-          <span className="font-medium">
-            {format(currentMonth, 'MMMM yyyy')}
-          </span>
-          <button 
-            onClick={goToNextMonth}
-            className="p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
-            aria-label="Next month"
-          >
-            <ChevronRightIcon size={16} />
-          </button>
-        </div>
+      <h3 className="text-lg font-semibold mb-4 flex items-center">
+        <CalendarIcon className="mr-2 text-primary" size={20} />
+        Task Completion Calendar
+      </h3>
+      
+      <div className="flex justify-between items-center mb-4">
+        <button 
+          onClick={() => navigateMonth('prev')}
+          className="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-700"
+        >
+          <ChevronLeftIcon size={20} className="transform rotate-90" />
+        </button>
+        
+        <h4 className="text-md font-medium">
+          {format(currentMonth, 'MMMM yyyy')}
+        </h4>
+        
+        <button 
+          onClick={() => navigateMonth('next')}
+          className="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-700"
+        >
+          <ChevronRightIcon size={20} className="transform rotate-90" />
+        </button>
       </div>
       
-      <div className="grid grid-cols-7 gap-2">
-        {/* Day headers */}
-        {dayHeaders.map((day, i) => (
-          <div 
-            key={`header-${i}`} 
-            className="text-center font-medium text-surface-500 text-sm py-1"
-          >
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          <div key={day} className="text-center text-xs font-medium text-surface-500 dark:text-surface-400">
             {day}
           </div>
         ))}
+      </div>
+      
+      <div className="grid grid-cols-7 gap-1">
+        {/* Empty cells for the days before the first day of the month */}
+        {Array.from({ length: startDay }).map((_, index) => (
+          <div key={`empty-${index}`} className="aspect-square"></div>
+        ))}
         
-        {/* Calendar days */}
-        {calendarGrid.map((day, i) => (
-          <div 
-            key={`day-${i}`} 
-            className={`
-              aspect-square flex items-center justify-center rounded-full text-sm relative
-              ${!day ? 'invisible' : ''}
-              ${day?.isToday ? 'border-2 border-primary' : ''}
-            `}
+        {/* Days of the month */}
+        {monthData.map(day => (
+          <div
+            key={day.formattedDate}
+            className={`aspect-square flex items-center justify-center rounded-full relative text-sm ${
+              day.isToday
+                ? 'ring-2 ring-primary/50 dark:ring-primary/30'
+                : ''
+            }`}
           >
-            {day && (
-              <>
-                <div 
-                  className={`
-                    h-full w-full absolute inset-0 rounded-full
-                    ${day.isCompleted ? 'bg-primary/10 dark:bg-primary/20' : ''}
-                  `}
-                ></div>
-                <span className="relative z-10">{day.dayOfMonth}</span>
-                {day.isCompleted && (
-                  <span className="absolute bottom-1 right-1 text-primary">
-                    <FlameIcon size={10} />
-                  </span>
-                )}
-              </>
-            )}
+            <div
+              className={`w-full h-full absolute rounded-full ${
+                day.isCompleted
+                  ? 'bg-green-500/20 dark:bg-green-500/30'
+                  : ''
+              }`}
+            ></div>
+            <span className="relative z-10">{day.dayOfMonth}</span>
           </div>
         ))}
       </div>
       
-      <div className="mt-4 flex justify-center gap-4 text-sm text-surface-500">
+      <div className="mt-4 flex items-center justify-center space-x-6 text-xs text-surface-500 dark:text-surface-400">
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded-full bg-primary/20 mr-1"></div>
-          <span>Completed</span>
+          <div className="w-3 h-3 rounded-full bg-green-500/20 dark:bg-green-500/30 mr-1"></div>
+          <span>Task Completed</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 rounded-full ring-2 ring-primary/50 dark:ring-primary/30 mr-1"></div>
+          <span>Today</span>
         </div>
       </div>
     </motion.div>
