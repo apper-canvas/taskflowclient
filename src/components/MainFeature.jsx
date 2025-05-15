@@ -9,7 +9,8 @@ function MainFeature({ addTask, categories }) {
     title: '',
     description: '',
     priority: 'medium',
-    category: 'personal'
+    category: 'personal',
+    bookmarked: false
   });
   const [errors, setErrors] = useState({});
   
@@ -75,6 +76,7 @@ function MainFeature({ addTask, categories }) {
       priority: formData.priority,
       category: formData.category,
       completed: false,
+      bookmarked: false,
       createdAt: new Date().toISOString()
     };
     
@@ -85,7 +87,8 @@ function MainFeature({ addTask, categories }) {
       title: '',
       description: '',
       priority: 'medium',
-      category: 'personal'
+      category: 'personal',
+      bookmarked: false
     });
     
     // Close form after submission

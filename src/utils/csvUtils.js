@@ -11,7 +11,7 @@ export const tasksToCSV = (tasks) => {
   if (!tasks || !tasks.length) return '';
   
   // Define CSV headers based on task properties
-  const headers = ['id', 'title', 'description', 'category', 'priority', 'completed'];
+  const headers = ['id', 'title', 'description', 'category', 'priority', 'completed', 'bookmarked'];
   
   // Create CSV header row
   const csvRows = [headers.join(',')];
@@ -52,7 +52,7 @@ export const csvToTasks = (csv) => {
     
     // Parse headers
     const headers = lines[0].split(',');
-    const requiredHeaders = ['id', 'title', 'category', 'priority', 'completed'];
+    const requiredHeaders = ['id', 'title', 'category', 'priority', 'completed', 'bookmarked'];
     
     // Validate required headers
     const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
@@ -71,7 +71,10 @@ export const csvToTasks = (csv) => {
       headers.forEach((header, index) => {
         task[header] = parsedRow[index] ? parsedRow[index].replace(/^"|"$/g, '').replace(/""/g, '"') : '';
       });
-      task.completed = task.completed.toString().toLowerCase() === 'true'; // Convert string to boolean
+      // Convert string to boolean for boolean fields
+      task.completed = task.completed.toString().toLowerCase() === 'true';
+      task.bookmarked = task.bookmarked ? task.bookmarked.toString().toLowerCase() === 'true' : false;
+      
       tasks.push(task);
     }
     return { tasks, errors };
