@@ -3,12 +3,13 @@ import Chart from 'react-apexcharts';
 import { motion } from 'framer-motion';
 import getIcon from '../utils/iconUtils';
 
-function DashboardSummary({ tasks }) {
+function DashboardSummary({ tasks, streakData }) {
   const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
   
   const TrendingUpIcon = getIcon('TrendingUp');
   const CheckCircleIcon = getIcon('CheckCircle');
   const ClockIcon = getIcon('Clock');
+  const FlameIcon = getIcon('Flame');
   
   useEffect(() => {
     // Update dark mode status when theme changes
@@ -55,6 +56,33 @@ function DashboardSummary({ tasks }) {
     stroke: { lineCap: 'round' }
   };
 
+  // Streak progress chart options
+  const streakChartOptions = {
+    chart: {
+      type: 'radialBar',
+      foreColor: textColor,
+      sparkline: {
+        enabled: true
+      }
+    },
+    plotOptions: {
+      radialBar: {
+        hollow: { size: '65%' },
+        track: { background: isDarkMode ? '#334155' : '#e2e8f0' },
+        dataLabels: {
+          name: { show: false },
+          value: { 
+            fontSize: '24px', 
+            fontWeight: 600, 
+            formatter: function (val) { return streakData.currentStreak }
+          }
+        }
+      }
+    },
+    colors: ['#f59e0b'], // Amber color for streaks
+    stroke: { lineCap: 'round' }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -66,7 +94,7 @@ function DashboardSummary({ tasks }) {
         Productivity Summary
       </h2>
       
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row md:divide-x dark:divide-surface-700">
         <div className="flex-1 flex justify-center items-center">
           <Chart 
             options={chartOptions} 
@@ -97,7 +125,32 @@ function DashboardSummary({ tasks }) {
             </div>
           </div>
         </div>
+        
+        <div className="flex-1 mt-6 md:mt-0 md:pl-4 pt-6 md:pt-0 border-t md:border-t-0 border-surface-200 dark:border-surface-700">
+          <div className="flex flex-col justify-center items-center">
+            <div className="flex items-center mb-2">
+              <FlameIcon className="text-amber-500 mr-2" size={20} />
+              <h3 className="text-lg font-semibold">Streak Stats</h3>
+            </div>
+            
+            <Chart 
+              options={streakChartOptions} 
+              series={[streakData.currentStreak > 0 ? 100 : 0]} 
+              type="radialBar" 
+              height={120} 
+              width={100}
+            />
+            
+            <div className="text-center">
+              <p className="text-sm text-surface-500 dark:text-surface-400">DAY STREAK</p>
+              <p className="text-sm mt-2">
+                Highest streak: <span className="font-semibold">{streakData.highestStreak}</span> days
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
+      
     </motion.div>
   );
 }

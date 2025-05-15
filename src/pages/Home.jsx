@@ -1,15 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import getIcon from '../utils/iconUtils';
+import { initializeStreakData, calculateStreak, completedTaskToday, isStreakAtRisk } from '../utils/streakUtils';
 import MainFeature from '../components/MainFeature';
 import DashboardSummary from '../components/DashboardSummary';
 import ImportExportTasks from '../components/ImportExportTasks';
+import StreakCalendar from '../components/StreakCalendar';
 
 function Home() {
   const [tasks, setTasks] = useState(() => {
     const savedTasks = localStorage.getItem('tasks');
     return savedTasks ? JSON.parse(savedTasks) : [];
+  });
+  
+  const [streakData, setStreakData] = useState(() => {
+    const savedStreakData = localStorage.getItem('streakData');
+    return savedStreakData ? JSON.parse(savedStreakData) : initializeStreakData();
   });
   
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -24,10 +31,43 @@ function Home() {
   const TrashIcon = getIcon('Trash');
   const LayersIcon = getIcon('Layers');
   const ListChecksIcon = getIcon('ListChecks');
+  const FlameIcon = getIcon('Flame');
 
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
+  
+  useEffect(() => {
+    localStorage.setItem('streakData', JSON.stringify(streakData));
+  }, [streakData]);
+  
+  // Check for streak at risk warning on page load
+  useEffect(() => {
+    if (isStreakAtRisk(streakData.lastCompletionDate, streakData.currentStreak)) {
+      toast.warning(`Don't break your ${streakData.currentStreak} day streak! Complete a task today.`, {
+        icon: <FlameIcon className="text-amber-500" />
+      });
+    }
+  }, []);
+  
+  // Update streak when a task is completed
+  const updateStreak = useCallback(() => {
+    // Only update if not already completed today
+    if (!completedTaskToday(streakData.lastCompletionDate)) {
+      const today = new Date().toISOString().split('T')[0];
+      const updatedCompletedDates = [...streakData.completedDates, today];
+      
+      const updatedStreakData = {
+        lastCompletionDate: today,
+        completedDates: updatedCompletedDates,
+        currentStreak: calculateStreak(updatedCompletedDates, today),
+        highestStreak: Math.max(streakData.highestStreak, calculateStreak(updatedCompletedDates, today))
+      };
+      
+      setStreakData(updatedStreakData);
+      return updatedStreakData.currentStreak;
+    }
+  }, [streakData]);
 
   const addTask = (newTask) => {
     setTasks([...tasks, newTask]);
@@ -42,6 +82,16 @@ function Home() {
     const task = tasks.find(task => task.id === id);
     if (!task.completed) {
       toast.success('Task completed! 🎉');
+      
+      // Update streak when a task is completed
+      const newStreak = updateStreak();
+      
+      // Show streak milestone celebrations
+      if (newStreak && newStreak > 1) {
+        toast.success(`🔥 ${newStreak} day streak! Keep it up!`, {
+          icon: <FlameIcon className="text-amber-500" />
+        });
+      }
     }
   };
 
@@ -49,10 +99,14 @@ function Home() {
     setTasks(tasks.filter(task => task.id !== id));
     toast.success('Task deleted successfully!');
   };
-
-  const filteredTasks = selectedCategory === 'all'
-    ? tasks
-    : tasks.filter(task => task.category === selectedCategory);
+  
+  // Filter tasks based on selected category
+  const filteredTasks = (() => {
+    if (selectedCategory === 'all') return tasks;
+    if (selectedCategory === 'streaks') 
+      return completedTaskToday(streakData.lastCompletionDate) ? [] : tasks.filter(task => !task.completed);
+    return tasks.filter(task => task.category === selectedCategory);
+  })();
   
   const completedTasks = tasks.filter(task => task.completed).length;
   const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
@@ -104,7 +158,20 @@ function Home() {
                   All Tasks
                 </button>
                 
-                
+                <button 
+                  onClick={() => setSelectedCategory('streaks')}
+                  className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center ${
+                    selectedCategory === 'streaks' 
+                      ? 'bg-primary/10 text-primary dark:bg-primary/20' 
+                      : 'hover:bg-surface-100 dark:hover:bg-surface-800'
+                  }`}
+                >
+                  <span 
+                    className="w-3 h-3 rounded-full mr-2 text-amber-500 flex items-center justify-center"
+                  >
+                    <FlameIcon size={16} />
+                  </span>
+                  Streaks</button>
                 
                 {categories.map(category => (
                   <button 
@@ -140,13 +207,27 @@ function Home() {
                     <span className="text-surface-600 dark:text-surface-400">Pending</span>
                     <span className="font-medium">{tasks.length - completedTasks}</span>
                   </div>
+                  <div className="flex justify-between mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
+                    <span className="text-surface-600 dark:text-surface-400">
+                      Current Streak
+                    </span>
+                    <span className="font-medium flex items-center">
+                      {streakData.currentStreak} day{streakData.currentStreak !== 1 ? 's' : ''}
+                      {streakData.currentStreak > 0 && (
+                        <FlameIcon size={16} className="ml-1 text-amber-500" />
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
           
           <div className="lg:col-span-4 order-1 lg:order-2">
-            <DashboardSummary tasks={tasks} />
+            <DashboardSummary 
+              tasks={tasks} 
+              streakData={streakData} 
+            />
             
             <MainFeature 
               addTask={addTask}
@@ -160,7 +241,9 @@ function Home() {
             
             <div className="mt-8">
               <h2 className="text-xl font-semibold mb-4">
-                {selectedCategory === 'all' ? 'All Tasks' : `${categories.find(c => c.id === selectedCategory)?.name} Tasks`}
+                {selectedCategory === 'all' ? 'All Tasks' : 
+                 selectedCategory === 'streaks' ? 'Tasks for Today\'s Streak' : 
+                 `${categories.find(c => c.id === selectedCategory)?.name} Tasks`}
               </h2>
               
               {filteredTasks.length === 0 ? (
@@ -174,6 +257,11 @@ function Home() {
                   <p className="text-surface-500 max-w-sm">
                     Create your first task using the form above to get started with managing your tasks.
                   </p>
+                  {selectedCategory === 'streaks' && completedTaskToday(streakData.lastCompletionDate) && (
+                    <div className="mt-4 text-green-500 font-medium flex items-center">
+                      <CheckCircleIcon className="mr-2" size={20} /> You've already completed a task today! Streak is safe.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -247,6 +335,11 @@ function Home() {
                     </motion.div>
                   ))}
                 </div>
+              )}
+              
+              {/* Streak Calendar */}
+              {selectedCategory === 'streaks' && (
+                <StreakCalendar streakData={streakData} />
               )}
             </div>
           </div>
