@@ -31,6 +31,15 @@ function Analytics() {
         setTasks(tasksData);
         setError(null);
       } catch (err) {
+        console.error("Error loading tasks:", err);
+        setError("Failed to load analytics data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTasks();
+  }, [user]);
+  
   const taskStats = useMemo(() => {
     return {
       total: tasks.length,
@@ -45,8 +54,14 @@ function Analytics() {
       completionRate: tasks.length > 0 ? Math.round((tasks.filter(task => task.completed).length / tasks.length) * 100) : 0
     };
   }, [tasks]);
+
+  // Loading state
+  if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
       <div className="text-xl text-primary">Loading analytics data...</div>
+    </div>;
+  }
+  
   const categoryChartOptions = useMemo(() => {
     return {
       chart: {
@@ -67,8 +82,7 @@ function Analytics() {
       taskStats.shopping
     ];
   }, [taskStats.personal, taskStats.work, taskStats.shopping]);
-        }
-      });
+  
   const priorityChartOptions = useMemo(() => {
     return {
       chart: {
@@ -89,12 +103,10 @@ function Analytics() {
       taskStats.lowPriority
     ];
   }, [taskStats.highPriority, taskStats.mediumPriority, taskStats.lowPriority]);
-      name: category.name,
-      count: categoryTasks,
   const streakChartOptions = useMemo(() => {
     return {
     };
-  });
+  }, []);
   
   // Priority distribution data
   const priorityCount = {
@@ -121,8 +133,7 @@ function Analytics() {
       x: format(day, 'EEE'),
       y: dayTasks
     };
-    };
-  }, []);
+  });
 
   // Theme colors based on dark mode
   const completedDateCounts = useMemo(() => {
@@ -134,8 +145,10 @@ function Analytics() {
       counts[date]++;
     });
     return counts;
-  }, [streakData?.completedDates]);
-      foreColor: textColor
+  }, []);
+  
+  // Theme-based colors
+  const textColor = isDarkMode ? '#cbd5e1' : '#334155';
     },
   const streakChartData = useMemo(() => Object.entries(completedDateCounts).map(([date, count]) => {
       radialBar: {
@@ -148,8 +161,9 @@ function Analytics() {
             fontWeight: 600,
             formatter: function (val) { return Math.round(val) + '%' } 
           }
-  }), [completedDateCounts]);
       }
+    };
+  }), [completedDateCounts, isDarkMode]);
     },
     colors: ['#6366f1'],
     stroke: { lineCap: 'round' }
@@ -166,7 +180,7 @@ function Analytics() {
     return [{
       name: 'Tasks Completed',
       data: streakChartData
-      enabled: true,
+    }];
   }, [streakChartData]);
       formatter: function(val) {
         return Math.round(val) + '%';
@@ -195,6 +209,7 @@ function Analytics() {
         dataLabels: {
           position: 'top'
         }
+        }
       }
     },
     dataLabels: {
@@ -205,11 +220,11 @@ function Analytics() {
         colors: [textColor]
       }
     },
-    grid: {
-      borderColor: gridColor
-    }
   };
 
+  const gridColor = isDarkMode ? '#334155' : '#e2e8f0';
+  const BarChartIcon = getIcon('BarChart');
+  const PieChartIcon = getIcon('PieChart');
   const weeklyChartOptions = {
     chart: {
       foreColor: textColor
@@ -219,9 +234,11 @@ function Analytics() {
       categories: weeklyCompletionData.map(d => d.x)
     },
     grid: {
-      borderColor: gridColor
+      borderColor: gridColor,
     }
   };
+  const TrendingUpIcon = getIcon('TrendingUp');
+  const ListIcon = getIcon('List');
 
   return (
     <>
@@ -259,7 +276,7 @@ function Analytics() {
             <div className="flex justify-center">
               <Chart 
                 options={completionChartOptions} 
-                series={[completionRate]} 
+                series={[taskStats.completionRate]} 
                 type="radialBar" 
                 height={300} 
               />
@@ -267,11 +284,11 @@ function Analytics() {
             <div className="flex justify-between mt-4 text-center">
               <div className="flex-1">
                 <p className="text-surface-500 text-sm">Completed</p>
-                <p className="text-xl font-semibold text-primary">{completedTasks}</p>
+                <p className="text-xl font-semibold text-primary">{taskStats.completed}</p>
               </div>
               <div className="flex-1">
                 <p className="text-surface-500 text-sm">Pending</p>
-                <p className="text-xl font-semibold text-accent">{pendingTasks}</p>
+                <p className="text-xl font-semibold text-accent">{taskStats.incomplete}</p>
               </div>
             </div>
           </motion.div>
@@ -288,7 +305,7 @@ function Analytics() {
             </h2>
             <Chart 
               options={categoryChartOptions} 
-              series={categoryDistribution.map(cat => cat.count)} 
+              series={categoryChartSeries} 
               type="pie" 
               height={300} 
             />
@@ -320,7 +337,7 @@ function Analytics() {
           >
             <h2 className="text-xl font-semibold mb-4 flex items-center">
               <CalendarIcon className="mr-2 text-primary" size={20} />
-              Weekly Activity
+              Weekly Task Completion
             </h2>
             <Chart 
               options={weeklyChartOptions} 
