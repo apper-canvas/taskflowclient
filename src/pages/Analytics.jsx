@@ -139,8 +139,7 @@ function Analytics() {
       style: {
         fontSize: '12px',
         colors: [textColor]
-      }
-    },
+      },
       formatter: function(val) {
         return Math.round(val) + '%';
       }
