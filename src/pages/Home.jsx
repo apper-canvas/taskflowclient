@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import getIcon from '../utils/iconUtils';
 import { initializeStreakData, calculateStreak, completedTaskToday, isStreakAtRisk } from '../utils/streakUtils';
+import { getSampleTasks } from '../utils/sampleData';
 import MainFeature from '../components/MainFeature';
 import DashboardSummary from '../components/DashboardSummary';
 import ImportExportTasks from '../components/ImportExportTasks';
@@ -11,7 +12,10 @@ import StreakCalendar from '../components/StreakCalendar';
 function Home() {
   const [tasks, setTasks] = useState(() => {
     const savedTasks = localStorage.getItem('tasks');
-    return savedTasks ? JSON.parse(savedTasks) : [];
+    if (savedTasks && JSON.parse(savedTasks).length > 0) {
+      return JSON.parse(savedTasks);
+    }
+    return getSampleTasks(); // Use sample data for new users
   });
   
   const [streakData, setStreakData] = useState(() => {
